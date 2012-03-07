@@ -30,6 +30,8 @@ import javax.servlet.ServletConfig
 import groovyx.gaelyk.plugins.PluginResourceSupport;
 import groovyx.gaelyk.plugins.PluginsHandler
 import groovyx.gaelyk.logging.GroovyLogger
+import org.codehaus.groovy.runtime.InvokerHelper
+import java.util.logging.Logger
 
 /**
  * The Gaelyk servlet extends Groovy's own Groovy servlet
@@ -41,10 +43,35 @@ import groovyx.gaelyk.logging.GroovyLogger
  * @see groovy.servlet.GroovyServlet
  */
 class GaelykServlet extends GroovyServlet {
+    private static final Logger log = Logger.getLogger(GroovyServlet.class.getName());
+
+    private GroovyScriptEngine gse
 
     @Override
     void init(ServletConfig config) {
         super.init(config)
+        File groovy = new File(config.getServletContext().getRealPath('/WEB-INF/groovy'))
+        preloadDirectory(groovy)
+    }
+    protected GroovyScriptEngine createGroovyScriptEngine(){
+        gse = new GroovyScriptEngine(this)
+        gse
+    }
+
+    private void preloadDirectory(File dir) {
+        Closure preload
+        preload = { File file ->
+            file.eachDir(preload)
+            file.eachFile {
+                if (it.getName().endsWith(".groovy")) {
+                    String script = it.getAbsolutePath()
+                    script = script.substring(script.indexOf('/WEB-INF/groovy')+'/WEB-INF/groovy'.length())
+                    log.info(script)
+                    gse.loadScriptByName(script)
+                }
+            }
+        }
+        preload(dir)
     }
 
     /**
@@ -72,6 +99,7 @@ class GaelykServlet extends GroovyServlet {
     void service(HttpServletRequest request, HttpServletResponse response) throws IOException {
         use([GaelykCategory, * PluginsHandler.instance.categories]) {
             PluginsHandler.instance.executeBeforeActions(request, response)
+            log.info getScriptUri(request)
             super.service(request, response)
             PluginsHandler.instance.executeAfterActions(request, response)
         }

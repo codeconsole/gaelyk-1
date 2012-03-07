@@ -26,6 +26,10 @@ import groovyx.gaelyk.plugins.PluginResourceSupport;
 import groovyx.gaelyk.plugins.PluginsHandler
 import javax.servlet.ServletConfig
 import groovyx.gaelyk.logging.GroovyLogger
+import javax.servlet.ServletException
+import java.util.logging.Logger
+import org.codehaus.groovy.runtime.InvokerHelper
+import groovy.text.SimpleTemplateEngine
 
 /**
  * The Gaelyk template servlet extends Groovy's own template servlet 
@@ -37,10 +41,27 @@ import groovyx.gaelyk.logging.GroovyLogger
  * @see groovy.servlet.TemplateServlet
  */
 class GaelykTemplateServlet extends TemplateServlet {
+    private static final Logger log = Logger.getLogger(GaelykTemplateServlet.class.getName());
 
     @Override
     void init(ServletConfig config) {
         super.init(config)
+        File gtpl = new File(config.getServletContext().getRealPath('/WEB-INF/gtpl'))
+        preloadDirectory(gtpl)
+    }
+
+    private void preloadDirectory(File dir) {
+        Closure preload
+        preload = { File file ->
+            file.eachDir(preload)
+            file.eachFile {
+                if (it.getName().endsWith(".gtpl")) {
+                    Template template = getTemplate(it.getAbsoluteFile())
+                    log.info("<${it.getAbsoluteFile().getAbsolutePath()}> ${SimpleTemplateEngine.counter}")
+                }
+            }
+        }
+        preload(dir)
     }
 
     /**
@@ -96,6 +117,7 @@ class GaelykTemplateServlet extends TemplateServlet {
 				response.sendError(HttpServletResponse.SC_FORBIDDEN, "Can not read \"" + name + "\"!");
 				return; // throw new IOException(file.getAbsolutePath());
 			}
+            log.info("<${file.getAbsolutePath()}> ${SimpleTemplateEngine.counter}")
 			template = getTemplate(file);
 		} else if(PluginResourceSupport.isPluginPath(uri)){
 			try {
