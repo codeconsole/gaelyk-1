@@ -42,10 +42,12 @@ import groovy.text.SimpleTemplateEngine
  */
 class GaelykTemplateServlet extends TemplateServlet {
     private static final Logger log = Logger.getLogger(GaelykTemplateServlet.class.getName());
-
+    private Set<File> cached;
+    
     @Override
     void init(ServletConfig config) {
         super.init(config)
+        cached = new HashSet<File>()
         File gtpl = new File(config.getServletContext().getRealPath('/WEB-INF/gtpl'))
         preloadDirectory(gtpl)
     }
@@ -56,7 +58,10 @@ class GaelykTemplateServlet extends TemplateServlet {
             file.eachDir(preload)
             file.eachFile {
                 if (it.getName().endsWith(".gtpl")) {
-                    Template template = getTemplate(it.getAbsoluteFile())
+                    File t = it.getAbsoluteFile()
+                    Template template = getTemplate(t)
+//                    template.make()
+                    cached.add(t)
                     log.info("<${it.getAbsoluteFile().getAbsolutePath()}> ${SimpleTemplateEngine.counter}")
                 }
             }
